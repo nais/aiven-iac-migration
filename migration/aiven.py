@@ -29,7 +29,7 @@ class ServiceIntegration(BaseModel):
 
 class User(BaseModel):
     username: str
-    type: Union[Literal["primary"], Literal["normal"]]
+    type: str
 
 
 class Service(BaseModel):
@@ -37,7 +37,7 @@ class Service(BaseModel):
     project_vpc_id: Optional[str]
     service_integrations: list[ServiceIntegration]
     service_name: str
-    service_type: Union[Literal["kafka"], Literal["opensearch"]]
+    service_type: Union[Literal["kafka"], Literal["opensearch"], Literal["redis"], Literal["influxdb"]]
     service_uri: str
     termination_protection: bool
     users: list[User]
@@ -52,6 +52,13 @@ class Aiven(object):
         self.session = requests.Session()
         self.session.auth = AivenAuth()
         self.base_url = f"{self.base}/{self.project}"
+
+    def get_services(self):
+        with get_console().status("Getting services"):
+            resp = self.session.get(self.base_url + "/service")
+        resp.raise_for_status()
+        data = resp.json()
+        return [Service.model_validate(s) for s in data["services"]]
 
     def get_service(self, service):
         with get_console().status("Getting service"):
