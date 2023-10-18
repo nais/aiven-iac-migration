@@ -32,6 +32,4 @@ dist
 pytest_runner*.egg
 __pycache__
 
-# JVM
-.gradle
-build
+.env

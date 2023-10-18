@@ -13,8 +13,8 @@ from rich.console import Console
 from rich.text import Text
 from rich_argparse import ArgumentDefaultsRichHelpFormatter
 
-from .migrate import migrate
-from . import errors
+from migration.migrate import migrate
+from migration import errors
 
 # PLAN OF ATTACK
 # * Get all services of requested type
@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser(usage=__doc__, formatter_class=ArgumentDefaultsRichHelpFormatter)
     parser.add_argument("env", choices=("dev", "prod"), nargs="?", default="dev", action="store", help="Environment to process")
     parser.add_argument("service_type", choices=("opensearch",), nargs="?", default="opensearch", action="store", help="Service type to process")
+    parser.add_argument("tenant", choices=("nav", "dev-nais"), nargs="?", default="nav", action="store", help="Tenant to process")
     options = parser.parse_args()
     console = Console()
     traceback.install(console=console)

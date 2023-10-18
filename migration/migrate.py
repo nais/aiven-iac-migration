@@ -19,7 +19,9 @@ def _migrate_service(service, client):
 
 
 def _create_k8s_client(options) -> Client:
-    k8s_context = f"nav-{options.env}-gcp"
+    k8s_context = f"{options.tenant}-{options.env}"
+    if options.tenant == "nav":
+        k8s_context += "-gcp"
     try:
         config = KubeConfig.from_env()
         client = Client(config.get(context_name=k8s_context))
