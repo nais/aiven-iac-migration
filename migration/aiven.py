@@ -33,6 +33,7 @@ class User(BaseModel):
 
 
 class Service(BaseModel):
+    cloud_name: str
     plan: str
     project_vpc_id: Optional[str]
     service_integrations: list[ServiceIntegration]
@@ -41,6 +42,7 @@ class Service(BaseModel):
     service_uri: str
     termination_protection: bool
     users: list[User]
+    tags: dict[str, str]
 
 
 class Aiven(object):
