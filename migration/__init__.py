@@ -1,6 +1,4 @@
-"""migrate
-
-Uses the Aiven API to identify services of a given type and migrate them to kubernetes resources in the target cluster.
+"""migrate uses the Aiven API to identify services and migrate them to kubernetes resources in the target cluster.
 
 Requires that the [markdown.code]AIVEN_TOKEN[/markdown.code] environment variable be set to a valid Aiven API token.
 It is assumed that your kubernetes contexts are named [markdown.code]nav-dev-gcp[/markdown.code]
@@ -26,10 +24,11 @@ from migration import errors
 
 def main():
     ArgumentDefaultsRichHelpFormatter.usage_markup = True
-    parser = argparse.ArgumentParser(usage=__doc__, formatter_class=ArgumentDefaultsRichHelpFormatter)
-    parser.add_argument("env", choices=("dev", "prod"), nargs="?", default="dev", action="store", help="Environment to process")
-    parser.add_argument("service_type", choices=("opensearch",), nargs="?", default="opensearch", action="store", help="Service type to process")
-    parser.add_argument("tenant", choices=("nav", "dev-nais"), nargs="?", default="nav", action="store", help="Tenant to process")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=ArgumentDefaultsRichHelpFormatter)
+    parser.add_argument("env", choices=("dev", "prod"), action="store", help="Environment to process")
+    parser.add_argument("--service_type", choices=("opensearch",), nargs="?", default="opensearch", action="store", help="Service type to process")
+    parser.add_argument("--tenant", choices=("nav", "dev-nais"), nargs="?", default="nav", action="store", help="Tenant to process")
+    parser.add_argument("-n", "--dry-run", action="store_true", help="Do not actually create resources")
     options = parser.parse_args()
     console = Console()
     traceback.install(console=console)

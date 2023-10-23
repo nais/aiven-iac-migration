@@ -2,8 +2,11 @@ import os
 from typing import Optional, Union, Literal
 
 import requests
+from requests.exceptions import HTTPError
 from pydantic import BaseModel
 from rich import get_console, print
+
+from migration.errors import AivenError, AivenUnauthenticated
 
 
 class AivenAuth(requests.auth.AuthBase):
@@ -55,17 +58,24 @@ class Aiven(object):
         self.session.auth = AivenAuth()
         self.base_url = f"{self.base}/{self.project}"
 
+    def _call_api(self, path, operation="Calling Aiven API"):
+        with get_console().status(operation.capitalize()):
+            resp = self.session.get(self.base_url + path)
+            if resp.status_code == 401:
+                raise AivenUnauthenticated("Aiven token is invalid")
+            try:
+                resp.raise_for_status()
+            except HTTPError as e:
+                raise AivenError(f"Error when {operation}") from e
+            return resp
+
     def get_services(self):
-        with get_console().status("Getting services"):
-            resp = self.session.get(self.base_url + "/service")
-        resp.raise_for_status()
+        resp = self._call_api("/service", "getting services")
         data = resp.json()
         return [Service.model_validate(s) for s in data["services"]]
 
     def get_service(self, service):
-        with get_console().status("Getting service"):
-            resp = self.session.get(self.base_url + f"/service/{service}")
-        resp.raise_for_status()
+        resp = self._call_api(f"/service/{service}", f"getting service {service}")
         data = resp.json()
         return Service.model_validate(data["service"])
 
