@@ -9,7 +9,14 @@ from .aiven import Aiven
 from .errors import KubernetesError
 
 
+def _find_prometheus_integration(service):
+    for integration in service.service_integrations:
+        if integration.integration_type == "prometheus":
+            return integration
+
+
 def _create_resources(project, service):
+    prometheus = _find_prometheus_integration(service)
     return codecs.load_all_yaml(textwrap.dedent(f"""\
     ---
     apiVersion: aiven.io/v1alpha1
@@ -35,7 +42,7 @@ def _create_resources(project, service):
     apiVersion: aiven.io/v1alpha1
     kind: ServiceIntegration
     metadata:
-        name: {service.service_name}
+        name: {service.service_name}-prometheus
         namespace: {service.tags["team"]}
         annotations:
             nais.io/created_by: aiven-iac-migration
@@ -44,12 +51,15 @@ def _create_resources(project, service):
     spec:
         project: {project}
         integrationType: prometheus
-        destinationEndpointId: prometheus
+        destinationEndpointId: {prometheus.dest_endpoint_id}
         sourceServiceName: {service.service_name}
+    status:
+        conditions: []
+        id: {prometheus.service_integration_id}
     """))
 
 
-def _migrate_service(project, service, client, dry_run):
+def _migrate_service(project, service, client: Client, dry_run):
     resources = _create_resources(project, service)
     if not dry_run:
         for item in resources:
@@ -65,7 +75,7 @@ def _create_k8s_client(options) -> Client:
         k8s_context += "-gcp"
     try:
         config = KubeConfig.from_env()
-        client = Client(config.get(context_name=k8s_context))
+        client = Client(config.get(context_name=k8s_context), field_manager="aiven-iac-migration")
         client.get(Service, "kubernetes", namespace="default")
         create_namespaced_resource("aiven.io", "v1alpha1", "OpenSearch", "opensearches")
         create_namespaced_resource("aiven.io", "v1alpha1", "ServiceIntegration", "serviceintegrations")

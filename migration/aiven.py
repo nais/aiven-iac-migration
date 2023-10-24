@@ -24,10 +24,13 @@ class ServiceIntegration(BaseModel):
     active: bool
     description: str
     dest_endpoint: Optional[str]
+    dest_endpoint_id: Optional[str]
     dest_project: str
+    enabled: bool
+    integration_type: str
+    service_integration_id: str
     source_project: str
     source_service: str
-    enabled: bool
 
 
 class User(BaseModel):
