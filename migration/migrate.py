@@ -1,5 +1,6 @@
 import textwrap
 
+import yaml
 from lightkube import KubeConfig, Client, codecs
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.core_v1 import Service
@@ -7,6 +8,7 @@ from rich import print
 
 from .aiven import Aiven
 from .errors import KubernetesError
+from .k8s.resources import OpenSearch, ServiceIntegration
 
 
 def _find_prometheus_integration(service):
@@ -17,7 +19,7 @@ def _find_prometheus_integration(service):
 
 def _create_resources(project, service):
     prometheus = _find_prometheus_integration(service)
-    return codecs.load_all_yaml(textwrap.dedent(f"""\
+    opensearch = OpenSearch.from_dict(yaml.safe_load(textwrap.dedent(f"""\
     ---
     apiVersion: aiven.io/v1alpha1
     kind: OpenSearch
@@ -38,6 +40,8 @@ def _create_resources(project, service):
             environment: {service.tags["environment"]}
             tenant: {service.tags["tenant"]}
         terminationProtection: {service.termination_protection}
+    """)))
+    service_integration_data = yaml.safe_load(textwrap.dedent(f"""\
     ---
     apiVersion: aiven.io/v1alpha1
     kind: ServiceIntegration
@@ -57,15 +61,19 @@ def _create_resources(project, service):
         conditions: []
         id: {prometheus.service_integration_id}
     """))
+    service_integration = ServiceIntegration.from_dict(service_integration_data)
+    service_integration_status = ServiceIntegration.Status.from_dict(service_integration_data)
+    return [opensearch, service_integration, service_integration_status]
 
 
 def _migrate_service(project, service, client: Client, dry_run):
     resources = _create_resources(project, service)
     if not dry_run:
         for item in resources:
+            print(f"[blue]Applying:[/blue] [yellow]{item.kind}[/yellow]/[green]{item.metadata.name}[/green] ...")
             client.apply(item)
     else:
-        print("[green]Would have applied the following items:[/green]")
+        print("[blue]Would have applied the following items:[/blue]")
         print(codecs.dump_all_yaml(resources))
 
 
