@@ -23,6 +23,7 @@ class OpenSearchSpec(DataclassDictMixIn):
     plan: 'str'
     project: 'str'
     cloudName: 'str' = None
+    disk_space: 'str' = None
     projectVpcId: 'str' = None
     tags: 'dict' = None
     terminationProtection: 'bool' = None

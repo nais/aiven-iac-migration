@@ -18,8 +18,9 @@ def _find_prometheus_integration(service):
 
 
 def _create_resources(project, service):
+    resources = []
     prometheus = _find_prometheus_integration(service)
-    opensearch = OpenSearch.from_dict(yaml.safe_load(textwrap.dedent(f"""\
+    resources.append(OpenSearch.from_dict(yaml.safe_load(textwrap.dedent(f"""\
     ---
     apiVersion: aiven.io/v1alpha1
     kind: OpenSearch
@@ -34,36 +35,38 @@ def _create_resources(project, service):
         plan: {service.plan}
         project: {project}
         cloudName: {service.cloud_name}
+        disk_space: "{service.disk_space_mb / 1024}G"
         projectVpcId: {service.project_vpc_id}
         tags:
             team: {service.tags["team"]}
             environment: {service.tags["environment"]}
             tenant: {service.tags["tenant"]}
         terminationProtection: {service.termination_protection}
-    """)))
-    service_integration_data = yaml.safe_load(textwrap.dedent(f"""\
-    ---
-    apiVersion: aiven.io/v1alpha1
-    kind: ServiceIntegration
-    metadata:
-        name: {service.service_name}-prometheus
-        namespace: {service.tags["team"]}
-        annotations:
-            nais.io/created_by: aiven-iac-migration
-        labels:
-            team: {service.tags["team"]}
-    spec:
-        project: {project}
-        integrationType: prometheus
-        destinationEndpointId: {prometheus.dest_endpoint_id}
-        sourceServiceName: {service.service_name}
-    status:
-        conditions: []
-        id: {prometheus.service_integration_id}
-    """))
-    service_integration = ServiceIntegration.from_dict(service_integration_data)
-    service_integration_status = ServiceIntegration.Status.from_dict(service_integration_data)
-    return [opensearch, service_integration, service_integration_status]
+    """))))
+    if prometheus:
+        service_integration_data = yaml.safe_load(textwrap.dedent(f"""\
+        ---
+        apiVersion: aiven.io/v1alpha1
+        kind: ServiceIntegration
+        metadata:
+            name: {service.service_name}-prometheus
+            namespace: {service.tags["team"]}
+            annotations:
+                nais.io/created_by: aiven-iac-migration
+            labels:
+                team: {service.tags["team"]}
+        spec:
+            project: {project}
+            integrationType: prometheus
+            destinationEndpointId: {prometheus.dest_endpoint_id}
+            sourceServiceName: {service.service_name}
+        status:
+            conditions: []
+            id: {prometheus.service_integration_id}
+        """))
+        resources.append(ServiceIntegration.from_dict(service_integration_data))
+        resources.append(ServiceIntegration.Status.from_dict(service_integration_data))
+    return resources
 
 
 def _migrate_service(project, service, client: Client, dry_run):
@@ -98,4 +101,7 @@ def migrate(options):
     aiven = Aiven(aiven_project)
     for service in aiven.get_services():
         if service.service_type == options.service_type:
-            _migrate_service(aiven_project, service, client, options.dry_run)
+            if all(tag in service.tags for tag in ("team", "environment", "tenant")):
+                _migrate_service(aiven_project, service, client, options.dry_run)
+            else:
+                print(f"[yellow]Skipping service {service.service_name} because it is missing tags[/yellow]")

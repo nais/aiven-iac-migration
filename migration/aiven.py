@@ -40,6 +40,7 @@ class User(BaseModel):
 
 class Service(BaseModel):
     cloud_name: str
+    disk_space_mb: int
     plan: str
     project_vpc_id: Optional[str]
     service_integrations: list[ServiceIntegration]
