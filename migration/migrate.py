@@ -35,7 +35,7 @@ def _create_resources(project, service):
         plan: {service.plan}
         project: {project}
         cloudName: {service.cloud_name}
-        disk_space: "{service.disk_space_mb / 1024}G"
+        disk_space: "{service.disk_space_mb // 1024}G"
         projectVpcId: {service.project_vpc_id}
         tags:
             team: {service.tags["team"]}
