@@ -33,7 +33,7 @@ def main():
     console = Console()
     traceback.install(console=console)
     try:
-        migrate(options)
+        migrate(options, console)
     except errors.MigrateError as e:
         output = Text(str(e), style="bold red")
         if e.__cause__:

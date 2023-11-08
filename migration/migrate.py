@@ -5,6 +5,7 @@ from lightkube import KubeConfig, Client, codecs
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.core_v1 import Service
 from rich import print
+from rich.progress import Progress
 
 from .aiven import Aiven
 from .errors import KubernetesError
@@ -73,10 +74,10 @@ def _migrate_service(project, service, client: Client, dry_run):
     resources = _create_resources(project, service)
     if not dry_run:
         for item in resources:
-            print(f"[blue]Applying:[/blue] [yellow]{item.kind}[/yellow]/[green]{item.metadata.name}[/green] ...")
-            client.apply(item)
+            print(f"\n[blue]Applying:[/blue] [yellow]{item.kind}[/yellow]/[green]{item.metadata.name}[/green] in namespace [red]{item.metadata.namespace}[/red] ...")
+            client.apply(item, namespace=item.metadata.namespace)
     else:
-        print("[blue]Would have applied the following items:[/blue]")
+        print("\n[blue]Would have applied the following items:[/blue]")
         print(codecs.dump_all_yaml(resources))
 
 
@@ -95,13 +96,15 @@ def _create_k8s_client(options) -> Client:
     return client
 
 
-def migrate(options):
+def migrate(options, console):
     aiven_project = f"{options.tenant}-{options.env}"
     client = _create_k8s_client(options)
     aiven = Aiven(aiven_project)
-    for service in aiven.get_services():
-        if service.service_type == options.service_type:
+    services = [s for s in aiven.get_services() if s.service_type == options.service_type]
+    with Progress(console=console, auto_refresh=False) as progress:
+        for service in progress.track(services):
             if all(tag in service.tags for tag in ("team", "environment", "tenant")):
                 _migrate_service(aiven_project, service, client, options.dry_run)
             else:
-                print(f"[yellow]Skipping service {service.service_name} because it is missing tags[/yellow]")
+                print(f"\n[yellow]Skipping service {service.service_name} because it is missing tags[/yellow]")
+            progress.refresh()
